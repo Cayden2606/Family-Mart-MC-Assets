@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grad IMG Lookup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #e94560;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .search-box {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            backdrop-filter: blur(10px);
+        }
+        input[type="text"]:focus {
+            outline: 2px solid #e94560;
+            background: rgba(255,255,255,0.15);
+        }
+        .student-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .student-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .student-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-5px);
+            border-color: #e94560;
+        }
+        .student-card.selected {
+            border-color: #e94560;
+            background: rgba(233,69,96,0.2);
+        }
+        .student-card.disabled {
+            opacity: 0.4;
+            cursor: default;
+            pointer-events: none;
+        }
+        .student-index {
+            color: #e94560;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .student-name {
+            margin-top: 10px;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        .student-admin {
+            margin-top: 5px;
+            color: #888;
+            font-family: monospace;
+        }
+        .detail-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            display: none;
+        }
+        .detail-panel.show {
+            display: block;
+        }
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .detail-name {
+            font-size: 1.8rem;
+            color: #e94560;
+        }
+        .close-btn {
+            background: #e94560;
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+        .close-btn:hover {
+            transform: rotate(90deg);
+        }
+        .detail-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .info-label {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .photo-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .photo-card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        .photo-card.error img {
+            display: none;
+        }
+        .photo-card.error::before {
+            content: 'Photo not found';
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #666;
+        }
+        .photo-label {
+            padding: 10px;
+            text-align: center;
+            color: #888;
+            font-family: monospace;
+        }
+        .scan-btn {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .scan-btn:hover {
+            background: #ff6b6b;
+            transform: scale(1.05);
+        }
+        .scan-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .photo-loading {
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #e94560;
+            transition: width 0.3s;
+        }
+        .terminal {
+            margin-top: 15px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #1e1e2e;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .terminal-header {
+            background: #2d2d3d;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .terminal-dots {
+            display: flex;
+            gap: 6px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot.red { background: #ff5f57; }
+        .dot.yellow { background: #febc2e; }
+        .dot.green { background: #28c840; }
+        .terminal-title {
+            color: #888;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        .terminal-body {
+            padding: 12px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #cdd6f4;
+        }
+        .terminal-body .line-fail {
+            color: #f38ba8;
+        }
+        .terminal-body .line-pass {
+            color: #a6e3a1;
+        }
+        .terminal-body .line-info {
+            color: #89b4fa;
+        }
+        .terminal-body .line-count {
+            color: #9399b2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Grad IMG Lookup</h1>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Search student name..." oninput="filterStudents()">
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;cursor:pointer;font-size:0.9rem;color:#888;">
+                <input type="checkbox" id="sortChecked" onchange="filterStudents()"> Show photos first
+            </label>
+        </div>
+
+        <div class="student-grid" id="studentGrid"></div>
+
+        <div class="detail-panel" id="detailPanel">
+            <div class="detail-header">
+                <div class="detail-name" id="detailName"></div>
+                <button class="close-btn" onclick="closePanel()">&times;</button>
+            </div>
+
+            <div class="detail-info">
+                <div class="info-box">
+                    <div class="info-label">Index</div>
+                    <div class="info-value" id="detailIndex"></div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Admin Number</div>
+                    <div class="info-value" id="detailAdmin"></div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">C15 Position</div>
+                    <div class="info-value" id="detailPosition"></div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Timestamp</div>
+                    <div class="info-value" id="detailTimestamp"></div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">YouTube</div>
+                    <div class="info-value" id="detailYoutube"></div>
+                </div>
+            </div>
+
+            <button class="scan-btn" id="scanBtn" onclick="scanPhotos()">Scan for Photos</button>
+            <div class="progress-bar" id="progressBar" style="display:none;margin-top:15px;">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+
+            <div class="terminal" id="terminal" style="display:none;">
+                <div class="terminal-header">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <div class="terminal-title">scan — bash</div>
+                </div>
+                <div class="terminal-body" id="terminalBody"></div>
+            </div>
+
+            <div class="photo-grid" id="photoGrid" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const students = [
+            {index: 1, name: "BRAHADEESH RAJENDRAN", admin: "222825T"},
+            {index: 2, name: "FOO SHI EN, NATHANAEL", admin: "222044H"},
+            {index: 3, name: "BRAVON TAN YUDE (CHEN YUDE)", admin: "221987Q"},
+            {index: 4, name: "CAYDEN MIGUEL THESEIRA", admin: "230833F", hasPhoto: true, position: 199, timestamp: "05:33:11", link: "https://youtu.be/zog2C3wbMlQ?t=19991"},
+            {index: 5, name: "JETHRO CHIA EE CHENG", admin: "230740A", position: 208, timestamp: "05:35:00", link: "https://youtu.be/zog2C3wbMlQ?t=20100"},
+            {index: 6, name: "SIM JING XUAN", admin: "233011S", position: 212, timestamp: "05:35:50", link: "https://youtu.be/zog2C3wbMlQ?t=20150"},
+            {index: 7, name: "YAP SIBTHID ARTHUR", admin: "230598Z", position: 184, timestamp: "05:30:14", link: "https://youtu.be/zog2C3wbMlQ?t=19814"},
+            {index: 8, name: "HNG HONG XU", admin: "231639W", position: 115, timestamp: "05:15:57", link: "https://youtu.be/zog2C3wbMlQ?t=18957"},
+            {index: 9, name: "FU LIANG", admin: "231630X", position: 205, timestamp: "05:34:21", link: "https://youtu.be/zog2C3wbMlQ?t=20061"},
+            {index: 10, name: "RACHEL TAN HONG LIN", admin: "232670U", hasPhoto: true, position: 211, timestamp: "05:35:31", link: "https://youtu.be/zog2C3wbMlQ?t=20131"},
+            {index: 11, name: "MARCUS YONG HEE FOONG", admin: "230273X", position: 151, timestamp: "05:23:54", link: "https://youtu.be/zog2C3wbMlQ?t=19434"},
+            {index: 12, name: "YEOH JIN WEI JARON", admin: "230492K", position: 189, timestamp: "05:31:16", link: "https://youtu.be/zog2C3wbMlQ?t=19876"},
+            {index: 13, name: "ZHENG XINGLU", admin: "231333M", hasPhoto: true, position: 187, timestamp: "05:30:56", link: "https://youtu.be/zog2C3wbMlQ?t=19856"},
+            {index: 14, name: "CHANG HAO WEN", admin: "233431A", position: 139, timestamp: "05:21:05", link: "https://youtu.be/zog2C3wbMlQ?t=19265"},
+            {index: 15, name: "LEE JIA XUAN RACHEL", admin: "222228H", position: 126, timestamp: "05:18:00", link: "https://youtu.be/zog2C3wbMlQ?t=19080"},
+            {index: 16, name: "LIU ZICHENG", admin: "231334Z"},
+            {index: 17, name: "CHONG ZHENG RUI", admin: "233142P", position: 101, timestamp: "05:13:16", link: "https://youtu.be/zog2C3wbMlQ?t=18796"},
+            {index: 18, name: "MAVERICK CHIN YU HENG", admin: "231581L", position: 210, timestamp: "05:35:28", link: "https://youtu.be/zog2C3wbMlQ?t=20128"},
+            {index: 19, name: "SEE PUI WAN", admin: "230811W", hasPhoto: true, position: 172, timestamp: "05:28:01", link: "https://youtu.be/zog2C3wbMlQ?t=19681"},
+            {index: 20, name: "DE GUZMAN LEIF NATHAN SONIDO", admin: "232783Z", position: 140, timestamp: "05:21:18", link: "https://youtu.be/zog2C3wbMlQ?t=19278"},
+            {index: 21, name: "JAREN CHO CHUAN'EN", admin: "231950T", position: 220, timestamp: "NOT FOUND", link: ""},
+            {index: 22, name: "YEO KENG EN", admin: "232911C", position: 197, timestamp: "05:32:44", link: "https://youtu.be/zog2C3wbMlQ?t=19964"},
+            {index: 23, name: "ZAPICO KENNZ MARVYN VICENTE", admin: "233028R", hasPhoto: true, position: 186, timestamp: "05:30:46", link: "https://youtu.be/zog2C3wbMlQ?t=19846"},
+            {index: 24, name: "LEE KAI WEN KEVIN", admin: "230783B", position: 127, timestamp: "05:18:11", link: "https://youtu.be/zog2C3wbMlQ?t=19091"},
+            {index: 25, name: "NICHOLAS KOH SHENG KAI", admin: "232332K", position: 158, timestamp: "05:25:06", link: "https://youtu.be/zog2C3wbMlQ?t=19506"},
+            {index: 26, name: "CHAN JUN WEI AADEN", admin: "231961W", position: 98, timestamp: "05:12:34", link: "https://youtu.be/zog2C3wbMlQ?t=18754"},
+            {index: 27, name: "MUHAMMAD AQEEF DANISH BIN SULAIMAN", admin: "230186U", position: 155, timestamp: "05:24:37", link: "https://youtu.be/zog2C3wbMlQ?t=19477"},
+            {index: 28, name: "RYAN KAM YEE CHONG", admin: "230503X", position: 170, timestamp: "05:27:39", link: "https://youtu.be/zog2C3wbMlQ?t=19659"},
+            {index: 29, name: "MUHAMMAD RIFAAT BIN ROSLI", admin: "232223R", position: 157, timestamp: "05:24:57", link: "https://youtu.be/zog2C3wbMlQ?t=19497"},
+            {index: 30, name: "HOO CHEN XI", admin: "230194D", position: 121, timestamp: "05:17:10", link: "https://youtu.be/zog2C3wbMlQ?t=19030"},
+            {index: 31, name: "LAU ZHI JIE", admin: "234677Q", position: 145, timestamp: "05:22:26", link: "https://youtu.be/zog2C3wbMlQ?t=19346"},
+            {index: 32, name: "DYLAN PHUA YU JIE", admin: "232748Y", position: 219, timestamp: "NOT FOUND", link: ""},
+            {index: 33, name: "TAN JIN YOU JOVEN", admin: "230524T", position: 228, timestamp: "NOT FOUND", link: ""},
+            {index: 34, name: "ALPHONSUS CHUA MING YAO", admin: "232128N", position: 91, timestamp: "05:10:48", link: "https://youtu.be/zog2C3wbMlQ?t=18648"},
+            {index: 35, name: "HAFIY NAUFAL BIN NOOR HANIFF", admin: "221001Y", position: 113, timestamp: "05:15:35", link: "https://youtu.be/zog2C3wbMlQ?t=18935"},
+            {index: 36, name: "BRYAN TAN YONG HAO", admin: "232078Q", position: 94, timestamp: "05:11:51", link: "https://youtu.be/zog2C3wbMlQ?t=18711"},
+            {index: 37, name: "TEO YONG XIANG", admin: "220985T", position: 230, timestamp: "NOT FOUND", link: ""},
+            {index: 38, name: "JAMES CHOW SINAN", admin: "234200P", position: 144, timestamp: "05:22:17", link: "https://youtu.be/zog2C3wbMlQ?t=19337"},
+            {index: 39, name: "CHIONH KAI", admin: "232782M", position: 216, timestamp: "NOT FOUND", link: ""},
+            {index: 40, name: "TOH TEE TEK", admin: "221092D", position: 185, timestamp: "05:30:34", link: "https://youtu.be/zog2C3wbMlQ?t=19834"},
+            {index: 41, name: "SOON HAO MING MARCUS", admin: "221071N", position: 226, timestamp: "NOT FOUND", link: ""},
+            {index: 42, name: "LUO JUNHUAN", admin: "234246P", position: 146, timestamp: "05:22:35", link: "https://youtu.be/zog2C3wbMlQ?t=19355"},
+            {index: 43, name: "PARUPALLI HARSHITH", admin: "230420W", hasPhoto: true, position: 193, timestamp: "05:32:00", link: "https://youtu.be/zog2C3wbMlQ?t=19920"},
+            {index: 44, name: "HAW YUAN JUN", admin: "221125X", position: 120, timestamp: "05:17:00", link: "https://youtu.be/zog2C3wbMlQ?t=19020"},
+            {index: 45, name: "HO JIN QUAN", admin: "230301U", position: 143, timestamp: "05:22:00", link: "https://youtu.be/zog2C3wbMlQ?t=19320"},
+            {index: 46, name: "GABRIEL NEO JUN WEI", admin: "220938L", position: 110, timestamp: "05:14:53", link: "https://youtu.be/zog2C3wbMlQ?t=18893"},
+            {index: 47, name: "CHIN YONG YI RAE", admin: "231584X", position: 202, timestamp: "05:33:49", link: "https://youtu.be/zog2C3wbMlQ?t=20029"},
+            {index: 48, name: "ANDEROUS JEE KAI LOK", admin: "230106P", position: 118, timestamp: "05:16:38", link: "https://youtu.be/zog2C3wbMlQ?t=18998"},
+            {index: 49, name: "AUNG PHYO KHANT", admin: "233430G", position: 93, timestamp: "05:11:27", link: "https://youtu.be/zog2C3wbMlQ?t=18687"},
+            {index: 50, name: "NG XIN EN, ASHLYN", admin: "231935G", position: 138, timestamp: "05:20:49", link: "https://youtu.be/zog2C3wbMlQ?t=19249"},
+            {index: 51, name: "QUAH XIN EE", admin: "230465F", position: 167, timestamp: "05:26:58", link: "https://youtu.be/zog2C3wbMlQ?t=19618"},
+            {index: 52, name: "LIN JIAHAN", admin: "231628T", position: 135, timestamp: "05:19:55", link: "https://youtu.be/zog2C3wbMlQ?t=19195"},
+            {index: 53, name: "ROY TABI OLICKAL", admin: "232516K", position: 169, timestamp: "05:27:29", link: "https://youtu.be/zog2C3wbMlQ?t=19649"},
+            {index: 54, name: "DARREN OH MING QUAN", admin: "233432F", position: 106, timestamp: "05:14:10", link: "https://youtu.be/zog2C3wbMlQ?t=18850"},
+            {index: 55, name: "CHOI JUNYOUNG", admin: "233788E", position: 203, timestamp: "05:34:03", link: "https://youtu.be/zog2C3wbMlQ?t=20043"},
+            {index: 56, name: "LEE ZHE YU", admin: "231721H", position: 128, timestamp: "05:18:24", link: "https://youtu.be/zog2C3wbMlQ?t=19104"},
+            {index: 57, name: "CHIAM YAO WEN", admin: "232092M", position: 100, timestamp: "05:13:05", link: "https://youtu.be/zog2C3wbMlQ?t=18785"},
+            {index: 58, name: "CHOU HUNG TING", admin: "233134W", position: 102, timestamp: "05:13:28", link: "https://youtu.be/zog2C3wbMlQ?t=18808"},
+            {index: 59, name: "CHOW EVAN", admin: "232834F", position: 217, timestamp: "NOT FOUND", link: ""},
+            {index: 60, name: "KOA JIA YUAN", admin: "230192Q", position: 123, timestamp: "05:17:29", link: "https://youtu.be/zog2C3wbMlQ?t=19049"},
+            {index: 61, name: "GAN WEN YI LUCAS", admin: "232546E", position: 206, timestamp: "05:34:31", link: "https://youtu.be/zog2C3wbMlQ?t=20071"},
+            {index: 62, name: "WARDATUL BAIDHAQ BINTE MAZLAN", admin: "232305F", position: 183, timestamp: "05:30:04", link: "https://youtu.be/zog2C3wbMlQ?t=19804"},
+            {index: 63, name: "AIRELL NG YAN ZHE", admin: "230136S", position: 90, timestamp: "05:10:36", link: "https://youtu.be/zog2C3wbMlQ?t=18636"},
+            {index: 64, name: "LIU YU CHENG", admin: "231686J", position: 136, timestamp: "05:20:17", link: "https://youtu.be/zog2C3wbMlQ?t=19217"},
+            {index: 65, name: "THIRSHEN S/O SIVA BALAN", admin: "232747D", hasPhoto: true, position: 181, timestamp: "05:29:43", link: "https://youtu.be/zog2C3wbMlQ?t=19783"},
+            {index: 66, name: "ZIL-LE HAIDER", admin: "231351L", position: 190, timestamp: "05:31:27", link: "https://youtu.be/zog2C3wbMlQ?t=19887"},
+            {index: 67, name: "AHMAD DANIAL BIN RAHMAT HASSAN", admin: "232412X"},
+            {index: 68, name: "LIM BING YAO, JAYVEN", admin: "234640L", position: 209, timestamp: "05:35:12", link: "https://youtu.be/zog2C3wbMlQ?t=20112"},
+            {index: 69, name: "LIM QING YING", admin: "234573H", position: 132, timestamp: "05:19:20", link: "https://youtu.be/zog2C3wbMlQ?t=19160"},
+            {index: 70, name: "GOH HAN CHEN JOVAN", admin: "230854G", position: 207, timestamp: "05:34:43", link: "https://youtu.be/zog2C3wbMlQ?t=20083"},
+            {index: 71, name: "LAI SHAN YONG", admin: "234682C", position: 125, timestamp: "05:17:50", link: "https://youtu.be/zog2C3wbMlQ?t=19070"},
+            {index: 72, name: "TAN JIA SHENG MATTHEW", admin: "221781K", hasPhoto: true, position: 177, timestamp: "05:28:54", link: "https://youtu.be/zog2C3wbMlQ?t=19734"},
+            {index: 73, name: "KENNETH KOH KAI GUAN", admin: "230877G", position: 122, timestamp: "05:17:19", link: "https://youtu.be/zog2C3wbMlQ?t=19039"},
+            {index: 74, name: "CHAN JIA WEI SELAMAT", admin: "234619H", position: 97, timestamp: "05:12:23", link: "https://youtu.be/zog2C3wbMlQ?t=18743"},
+            {index: 75, name: "ZHENG ZHOUWEI", admin: "244824T", position: 188, timestamp: "05:31:06", link: "https://youtu.be/zog2C3wbMlQ?t=19866"},
+            {index: 76, name: "LIM MEOW KIANG", admin: "230942M", position: 131, timestamp: "05:19:05", link: "https://youtu.be/zog2C3wbMlQ?t=19145"},
+            {index: 77, name: "POO CHIN YANG", admin: "234518D", position: 165, timestamp: "05:26:36", link: "https://youtu.be/zog2C3wbMlQ?t=19596"},
+            {index: 78, name: "NICHOLAS YAU", admin: "230898B", position: 162, timestamp: "05:26:02", link: "https://youtu.be/zog2C3wbMlQ?t=19562"},
+            {index: 79, name: "BILL GEORGE TAY", admin: "233242M", position: 96, timestamp: "05:12:13", link: "https://youtu.be/zog2C3wbMlQ?t=18733"},
+            {index: 80, name: "NURHIDAYATUL SHAFAWATI BINTE IBRAHIM", admin: "234576M", position: 163, timestamp: "05:26:14", link: "https://youtu.be/zog2C3wbMlQ?t=19574"},
+            {index: 81, name: "DIYANAH BINTE MUHAMMAD HASYIM CHOONG", admin: "233791H", position: 108, timestamp: "05:14:30", link: "https://youtu.be/zog2C3wbMlQ?t=18870"},
+            {index: 82, name: "MUHAMAD IMAN RIZQI BIN JAMAL", admin: "244706R", position: 154, timestamp: "05:24:27", link: "https://youtu.be/zog2C3wbMlQ?t=19467"},
+            {index: 83, name: "GNASELVAN PRAKASH", admin: "231505D", position: 112, timestamp: "05:15:21", link: "https://youtu.be/zog2C3wbMlQ?t=18921"},
+            {index: 84, name: "J. B. JANANI", admin: "231603E"},
+            {index: 85, name: "MARCUS PEK", admin: "230947A"},
+            {index: 86, name: "TAN CHANG HONG", admin: "234277M", position: 213, timestamp: "05:36:01", link: "https://youtu.be/zog2C3wbMlQ?t=20161"},
+            {index: 87, name: "NEO Zhi Yong Dominic", admin: "231392N", position: 192, timestamp: "05:31:48", link: "https://youtu.be/zog2C3wbMlQ?t=19908"},
+            {index: 88, name: "LIM KAY EN", admin: "232779H", position: 130, timestamp: "05:18:55", link: "https://youtu.be/zog2C3wbMlQ?t=19135"},
+            {index: 89, name: "ABDUL LATIF HUZAIFI BIN ZULKIFLE", admin: "232216Q", position: 89, timestamp: "05:10:25", link: "https://youtu.be/zog2C3wbMlQ?t=18625"},
+            {index: 90, name: "KANG GUAN TING", admin: "232238J", position: 223, timestamp: "NOT FOUND", link: ""},
+            {index: 91, name: "DESMOND CHAD-STUART MICHAEL", admin: "234551X", position: 107, timestamp: "05:14:20", link: "https://youtu.be/zog2C3wbMlQ?t=18860"},
+            {index: 92, name: "CRYSTEL HOE YU XUAN", admin: "232828M", position: 105, timestamp: "05:13:59", link: "https://youtu.be/zog2C3wbMlQ?t=18839"},
+            {index: 93, name: "SATHIYAMURTHY JEY YAGHESWAR", admin: "233055H", position: 171, timestamp: "05:27:51", link: "https://youtu.be/zog2C3wbMlQ?t=19671"},
+            {index: 94, name: "CELESTE LIM XIN YI", admin: "232910N"},
+            {index: 95, name: "LOW JUN WEN, DAMIEN", admin: "234600Z"},
+            {index: 96, name: "EVAN SEE ZHENG AN", admin: "231972L", position: 204, timestamp: "05:34:12", link: "https://youtu.be/zog2C3wbMlQ?t=20052"},
+            {index: 97, name: "SUN CHENGXIAO", admin: "231417P", position: 227, timestamp: "NOT FOUND", link: ""},
+            {index: 98, name: "SHAWN SEAH QUAN FENG", admin: "231540M", position: 174, timestamp: "05:28:21", link: "https://youtu.be/zog2C3wbMlQ?t=19701"},
+            {index: 99, name: "HEIN QI YUAN PAUL", admin: "231839M", position: 114, timestamp: "05:15:48", link: "https://youtu.be/zog2C3wbMlQ?t=18948"},
+            {index: 100, name: "NURAIDI HIZRI BIN AIDIL", admin: "231767H"},
+            {index: 101, name: "YONG JUNWEI, REAGAN", admin: "231426Z", position: 232, timestamp: "NOT FOUND", link: ""},
+            {index: 102, name: "PANG SHENG YUAN", admin: "231648R", position: 164, timestamp: "05:26:25", link: "https://youtu.be/zog2C3wbMlQ?t=19585"},
+            {index: 103, name: "LEROY YEOH SHUN JIE", admin: "231808P", position: 129, timestamp: "05:18:35", link: "https://youtu.be/zog2C3wbMlQ?t=19115"},
+            {index: 104, name: "HOE JUN KAI", admin: "232050G", position: 116, timestamp: "05:16:06", link: "https://youtu.be/zog2C3wbMlQ?t=18966"},
+            {index: 105, name: "REUBEN RAVINTHRAN", admin: "233006E"},
+            {index: 106, name: "MUHAMMAD HAZIQ BIN JOFERI", admin: "234500R"},
+            {index: 107, name: "SEE YU XUAN", admin: "232425D", position: 173, timestamp: "05:28:11", link: "https://youtu.be/zog2C3wbMlQ?t=19691"},
+            {index: 108, name: "LIM WEI JIE JAYDEN", admin: "231752A", position: 133, timestamp: "05:19:35", link: "https://youtu.be/zog2C3wbMlQ?t=19175"},
+            {index: 109, name: "DARIEN TONG", admin: "231974H", position: 218, timestamp: "NOT FOUND", link: ""},
+            {index: 110, name: "SYED DAREEL ALQADRY BIN SYED KHAIRUZAAD", admin: "230964S", hasPhoto: true, position: 175, timestamp: "05:28:32", link: "https://youtu.be/zog2C3wbMlQ?t=19712"},
+            {index: 111, name: "MUHAMMAD NAUFAL BIN MD NIZAM", admin: "231854P", position: 160, timestamp: "05:25:41", link: "https://youtu.be/zog2C3wbMlQ?t=19541"},
+            {index: 112, name: "RAINDIAS NG YONG CHENG", admin: "232633Y", position: 198, timestamp: "05:32:54", link: "https://youtu.be/zog2C3wbMlQ?t=19974"},
+            {index: 113, name: "WONG YAN YI", admin: "231649E", position: 196, timestamp: "05:32:32", link: "https://youtu.be/zog2C3wbMlQ?t=19952"},
+            {index: 114, name: "LIM XIN YU, DARRYL", admin: "231438N", position: 134, timestamp: "05:19:45", link: "https://youtu.be/zog2C3wbMlQ?t=19185"},
+            {index: 115, name: "CHUI ZHENHAO", admin: "231742L", position: 104, timestamp: "05:13:48", link: "https://youtu.be/zog2C3wbMlQ?t=18828"},
+            {index: 116, name: "WINSTON CHOONG JUN YU", admin: "232077J", position: 191, timestamp: "05:31:38", link: "https://youtu.be/zog2C3wbMlQ?t=19898"},
+            {index: 117, name: "PUTRI ELISHA BINTE MAHADIR", admin: "231962J", position: 166, timestamp: "05:26:47", link: "https://youtu.be/zog2C3wbMlQ?t=19607"},
+            {index: 118, name: "JESHNU PILLAI SADISEN PILLAI", admin: "233226W"},
+            {index: 119, name: "ER LEWIS", admin: "234696A", position: 142, timestamp: "05:21:47", link: "https://youtu.be/zog2C3wbMlQ?t=19307"},
+            {index: 120, name: "CHOK WEI JIE", admin: "234509B", position: 141, timestamp: "05:21:35", link: "https://youtu.be/zog2C3wbMlQ?t=19295"},
+            {index: 121, name: "LUTFIL HADI BIN USMANHASIDIK", admin: "231710Q", position: 148, timestamp: "05:23:07", link: "https://youtu.be/zog2C3wbMlQ?t=19387"},
+            {index: 122, name: "CHEN YU QI", admin: "233810R"},
+            {index: 123, name: "CHIA FA JUN GINO", admin: "232848H"},
+            {index: 124, name: "ARKSHAN TDEV THANARAJ", admin: "232705P"},
+            {index: 125, name: "NEO WEI YUAN", admin: "232320X"},
+            {index: 126, name: "SYED MUHAMMAD ALKAFF BIN JAMALLUDIN", admin: "232913R", position: 176, timestamp: "05:28:44", link: "https://youtu.be/zog2C3wbMlQ?t=19724"},
+            {index: 127, name: "TEO HAO RONG", admin: "234996F", position: 180, timestamp: "05:29:28", link: "https://youtu.be/zog2C3wbMlQ?t=19768"},
+            {index: 128, name: "LIM RUI YANG", admin: "234464U"},
+            {index: 129, name: "JEREMY LEONG KAI HENG", admin: "230112X", position: 200, timestamp: "05:33:22", link: "https://youtu.be/zog2C3wbMlQ?t=20002"},
+            {index: 130, name: "LIM HENG YU", admin: "234722J", position: 201, timestamp: "05:33:33", link: "https://youtu.be/zog2C3wbMlQ?t=20013"},
+            {index: 131, name: "CHUA JIA JING", admin: "230641X", position: 103, timestamp: "05:13:37", link: "https://youtu.be/zog2C3wbMlQ?t=18817"},
+            {index: 132, name: "CHEN HONGYU", admin: "234595T", position: 99, timestamp: "05:12:44", link: "https://youtu.be/zog2C3wbMlQ?t=18764"},
+            {index: 133, name: "MAGTALAS IRIS CHRISTOF EON SANTOS", admin: "231327E", position: 149, timestamp: "05:23:19", link: "https://youtu.be/zog2C3wbMlQ?t=19399"},
+            {index: 134, name: "GABRIEL ONG JUN MUN", admin: "231510R", position: 111, timestamp: "05:15:11", link: "https://youtu.be/zog2C3wbMlQ?t=18911"},
+            {index: 135, name: "RODERICK KER ZHEN HUA", admin: "231539S", position: 168, timestamp: "05:27:19", link: "https://youtu.be/zog2C3wbMlQ?t=19639"},
+            {index: 136, name: "TASNEEM D/O MOHAMMED RIAZ", admin: "232822E", position: 229, timestamp: "NOT FOUND", link: ""},
+            {index: 137, name: "JOSEPH LISA", admin: "233144E", position: 117, timestamp: "05:16:26", link: "https://youtu.be/zog2C3wbMlQ?t=18986"},
+            {index: 138, name: "TAN YONG SWEE NICKY", admin: "230142A", position: 179, timestamp: "05:29:18", link: "https://youtu.be/zog2C3wbMlQ?t=19758"},
+            {index: 139, name: "MARCUS TAN JUN RUI", admin: "234485Z", position: 150, timestamp: "05:23:43", link: "https://youtu.be/zog2C3wbMlQ?t=19423"},
+            {index: 140, name: "TOH KAI JIAN, TIMOTHY", admin: "234497N", position: 182, timestamp: "05:29:54", link: "https://youtu.be/zog2C3wbMlQ?t=19794"},
+            {index: 141, name: "MUHAMMAD SYAHID BIN MOHAMED TAIB", admin: "234481H", position: 161, timestamp: "05:25:52", link: "https://youtu.be/zog2C3wbMlQ?t=19552"},
+            {index: 142, name: "MOHAMED NABIL HAQ BIN HAMDAN", admin: "234605F", position: 153, timestamp: "05:24:15", link: "https://youtu.be/zog2C3wbMlQ?t=19455"},
+            {index: 143, name: "KYLE ZAC TEOH Z'SHEN", admin: "233807N", position: 124, timestamp: "05:17:41", link: "https://youtu.be/zog2C3wbMlQ?t=19061"},
+            {index: 144, name: "ADELLE WONG YI TING", admin: "231595Q"},
+            {index: 145, name: "DIVANESH S/O SUGENDRAN", admin: "231496B"},
+            {index: 146, name: "LEE TECK SENG BENJAMIN", admin: "232350A"},
+            {index: 147, name: "LOO SIN HENG", admin: "233166R", position: 137, timestamp: "05:20:27", link: "https://youtu.be/zog2C3wbMlQ?t=19227"},
+            {index: 148, name: "NIXON LEE SHAO TZER", admin: "230276Z", position: 159, timestamp: "05:25:17", link: "https://youtu.be/zog2C3wbMlQ?t=19517"},
+            {index: 149, name: "KEIAN NG ZUN KAY", admin: "230130R", position: 119, timestamp: "05:16:49", link: "https://youtu.be/zog2C3wbMlQ?t=19009"},
+            {index: 150, name: "TAN LOK HUAY EMMA", admin: "232838K", position: 178, timestamp: "05:29:05", link: "https://youtu.be/zog2C3wbMlQ?t=19745"},
+            {index: 151, name: "ANG KOK SENG ADAM", admin: "220883Q", position: 147, timestamp: "05:22:45", link: "https://youtu.be/zog2C3wbMlQ?t=19365"},
+            {index: 152, name: "MUHAMMAD HAZIQ BIN MUSTAPHA", admin: "231511E", position: 156, timestamp: "05:24:46", link: "https://youtu.be/zog2C3wbMlQ?t=19486"},
+            {index: 153, name: "AMRIT LEONG", admin: "233178A", position: 92, timestamp: "05:10:57", link: "https://youtu.be/zog2C3wbMlQ?t=18657"},
+            {index: 154, name: "LIN YUN HONG", admin: "231552Y"},
+            {index: 155, name: "CHAU JIT BAO", admin: "234591P", position: 215, timestamp: "NOT FOUND", link: ""},
+            {index: 156, name: "EASTON LIM ZHEJIANG", admin: "231840Z"},
+            {index: 157, name: "YATI SOE LIN", admin: "233099L", position: 195, timestamp: "05:32:22", link: "https://youtu.be/zog2C3wbMlQ?t=19942"},
+            {index: 158, name: "SHASHAANTH", admin: "233808C", hasPhoto: true, position: 194, timestamp: "05:32:11", link: "https://youtu.be/zog2C3wbMlQ?t=19931"},
+            {index: 159, name: "CHEW QIBIN BRYANT", admin: "231939J"},
+            {index: 160, name: "RANVEER SINGH GILL", admin: "231863Z"},
+            {index: 161, name: "LIAW JUN WEI", admin: "232156L"},
+            {index: 162, name: "HEIN HTOO ZAW", admin: "231322Y"},
+            {index: 163, name: "ETHAN YEO DEN HONG", admin: "231877P", position: 109, timestamp: "05:14:43", link: "https://youtu.be/zog2C3wbMlQ?t=18883"},
+            {index: 164, name: "MUHAMMAD SYARIF BIN HAMDAN", admin: "232365H"},
+            {index: 165, name: "CHAN CHAO JUN", admin: "233023D"},
+            {index: 166, name: "Cai Minghui", admin: "", position: 95, timestamp: "05:12:02", link: "https://youtu.be/zog2C3wbMlQ?t=18722"},
+            {index: 167, name: "Michelle Jacob", admin: "", position: 152, timestamp: "05:24:04", link: "https://youtu.be/zog2C3wbMlQ?t=19444"},
+            {index: 168, name: "Brendan Lee Wei Quan", admin: "", position: 214, timestamp: "NOT FOUND", link: ""},
+            {index: 169, name: "Jarrett Ong Jing Jie", admin: "", position: 221, timestamp: "NOT FOUND", link: ""},
+            {index: 170, name: "Joel Chan Jia Hao", admin: "", position: 222, timestamp: "NOT FOUND", link: ""},
+            {index: 171, name: "Ng Jia Cheng", admin: "", position: 224, timestamp: "NOT FOUND", link: ""},
+            {index: 172, name: "Ong Ying Jie", admin: "", position: 225, timestamp: "NOT FOUND", link: ""},
+            {index: 173, name: "Tristan Chong Ren Xiang", admin: "", position: 231, timestamp: "NOT FOUND", link: ""}
+        ];
+
+        let selectedStudent = null;
+
+        function getPosition(student) {
+            return student.position || (student.index + 88);
+        }
+
+        function isDisabled(s) {
+            return !s.admin || !s.timestamp || s.timestamp === 'NOT FOUND';
+        }
+
+        function renderStudents(filter = '') {
+            const grid = document.getElementById('studentGrid');
+            const filtered = students.filter(s =>
+                s.name.toLowerCase().includes(filter.toLowerCase())
+            );
+            const active = filtered.filter(s => !isDisabled(s));
+            const greyed = filtered.filter(s => isDisabled(s));
+
+            const sortByChecked = document.getElementById('sortChecked').checked;
+            let sorted;
+            if (sortByChecked) {
+                const withPhoto = active.filter(s => s.hasPhoto);
+                const withoutPhoto = active.filter(s => !s.hasPhoto);
+                sorted = [...withPhoto, ...withoutPhoto, ...greyed];
+            } else {
+                sorted = [...active, ...greyed];
+            }
+
+            grid.innerHTML = sorted.map(s => {
+                const disabled = isDisabled(s);
+                return `
+                <div class="student-card ${disabled ? 'disabled' : ''} ${selectedStudent?.index === s.index ? 'selected' : ''}"
+                     ${disabled ? '' : `onclick="selectStudent(${s.index})"`}>
+                    <div class="student-index">#${s.index} ${s.position ? '(Pos ' + s.position + ')' : ''} ${s.hasPhoto ? '<span style="color:#28c840;">&#10003;</span>' : ''}</div>
+                    <div class="student-name">${s.name}</div>
+                    <div class="student-admin">${s.admin}${s.timestamp && s.timestamp !== 'NOT FOUND' ? ' | ' + s.timestamp : ''}</div>
+                </div>
+            `}).join('');
+        }
+
+        function selectStudent(index) {
+            selectedStudent = students.find(s => s.index === index);
+            document.getElementById('studentGrid').style.display = 'none';
+            document.getElementById('search').parentElement.style.display = 'none';
+
+            document.getElementById('detailName').textContent = selectedStudent.name;
+            document.getElementById('detailIndex').textContent = selectedStudent.index;
+            document.getElementById('detailAdmin').textContent = selectedStudent.admin;
+            document.getElementById('detailPosition').textContent = getPosition(selectedStudent);
+            document.getElementById('detailTimestamp').textContent = selectedStudent.timestamp || '—';
+            const ytEl = document.getElementById('detailYoutube');
+            if (selectedStudent.link) {
+                ytEl.innerHTML = `<a href="${selectedStudent.link}" target="_blank" style="color:#e94560;text-decoration:none;">Watch</a>`;
+            } else {
+                ytEl.textContent = '—';
+            }
+
+            document.getElementById('photoGrid').innerHTML = '';
+            document.getElementById('scanBtn').disabled = false;
+            document.getElementById('progressBar').style.display = 'none';
+
+            document.getElementById('detailPanel').classList.add('show');
+        }
+
+        function closePanel() {
+            document.getElementById('detailPanel').classList.remove('show');
+            document.getElementById('studentGrid').style.display = '';
+            document.getElementById('search').parentElement.style.display = '';
+            selectedStudent = null;
+            renderStudents(document.getElementById('search').value);
+        }
+
+        function filterStudents() {
+            renderStudents(document.getElementById('search').value);
+        }
+
+        function checkImage(url) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+            });
+        }
+
+        function termLog(msg, type = 'info') {
+            const body = document.getElementById('terminalBody');
+            const line = document.createElement('div');
+            line.className = `line-${type}`;
+            line.textContent = msg;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        async function scanPrefix(admin, position, prefix, startRange, endRange) {
+            const progressFill = document.getElementById('progressFill');
+            const total = endRange - startRange + 1;
+            const BATCH = 20;
+            termLog(`$ scanning ${prefix} [${startRange}..${endRange}] (batch=${BATCH})`, 'info');
+
+            for (let i = startRange; i <= endRange; i += BATCH) {
+                const batchEnd = Math.min(i + BATCH - 1, endRange);
+                const promises = [];
+                for (let j = i; j <= batchEnd; j++) {
+                    const num = j.toString().padStart(4, '0');
+                    const url = `https://www.werkzgallery.com/nyp/ind_images/${admin}/C15_${position}-${prefix}_${num}.jpg`;
+                    promises.push(checkImage(url).then(ok => ({ ok, url, number: j, num })));
+                }
+
+                const results = await Promise.all(promises);
+                const hit = results.find(r => r.ok);
+                const count = batchEnd - startRange + 1;
+
+                if (hit) {
+                    termLog(`[${count}/${total}] ${prefix}_${hit.num}.jpg ✓ FOUND`, 'pass');
+                    return { found: true, url: hit.url, number: hit.number };
+                }
+
+                if (count % 100 < BATCH || count === BATCH) {
+                    termLog(`[${count}/${total}] ${prefix}_${i.toString().padStart(4,'0')}-${batchEnd.toString().padStart(4,'0')} ✗`, 'fail');
+                }
+
+                const progress = (count / total) * 100;
+                progressFill.style.width = `${progress}%`;
+            }
+
+            termLog(`$ ${prefix} — no match in range`, 'fail');
+            return { found: false };
+        }
+
+        async function scanPhotos() {
+            if (!selectedStudent) return;
+
+            const btn = document.getElementById('scanBtn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning...';
+
+            const terminal = document.getElementById('terminal');
+            const terminalBody = document.getElementById('terminalBody');
+            terminal.style.display = 'block';
+            terminalBody.innerHTML = '';
+
+            const photoGrid = document.getElementById('photoGrid');
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = 'block';
+            progressBar.style.marginTop = '15px';
+            document.getElementById('progressFill').style.width = '0%';
+
+            photoGrid.innerHTML = '';
+
+            const admin = selectedStudent.admin;
+            const position = getPosition(selectedStudent);
+            termLog(`$ target: ${selectedStudent.name} | admin=${admin} | pos=${position}`, 'info');
+
+            // Try both LUI and DSC
+            const lui = await scanPrefix(admin, position, 'LUI', 1, 5000);
+            const dsc = await scanPrefix(admin, position, 'DSC', 1, 5000);
+
+            document.getElementById('progressFill').style.width = '100%';
+            termLog(`$ scan complete`, 'info');
+
+            photoGrid.innerHTML = `
+                <div class="photo-card ${lui.found ? '' : 'error'}">
+                    ${lui.found ? `<img src="${lui.url}" alt="LUI" onclick="openLightbox(this.src)" style="cursor:pointer;" onerror="this.parentElement.classList.add('error')">` : ''}
+                    <div class="photo-label">LUI_${lui.found ? lui.number.toString().padStart(4, '0') : '####'}</div>
+                </div>
+                <div class="photo-card ${dsc.found ? '' : 'error'}">
+                    ${dsc.found ? `<img src="${dsc.url}" alt="DSC" onclick="openLightbox(this.src)" style="cursor:pointer;" onerror="this.parentElement.classList.add('error')">` : ''}
+                    <div class="photo-label">DSC_${dsc.found ? dsc.number.toString().padStart(4, '0') : '####'}</div>
+                </div>
+            `;
+
+            btn.disabled = false;
+            btn.textContent = 'Scan for Photos';
+            progressBar.style.display = 'none';
+        }
+
+        function openLightbox(src) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:pointer;';
+            overlay.onclick = () => overlay.remove();
+            const img = document.createElement('img');
+            img.src = src;
+            img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
+            overlay.appendChild(img);
+            document.body.appendChild(overlay);
+        }
+
+        // Initialize
+        renderStudents();
+    </script>
+</body>
+</html>
